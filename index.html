@@ -380,7 +380,7 @@ function buildF1(){
               onchange="updF1('${g.id}','acab',this.value)"/>
           </div>
         </div>
-        <button class="sbtn" onclick="saveRow1('" + g.id + "')">Salvar</button>
+        <button class="sbtn" data-id="${g.id}" data-fase="1" onclick="handleSave(this)">Salvar</button>
       </div>`;
     el.appendChild(card);
   });
@@ -439,7 +439,7 @@ function buildF2(){
                 onchange="updF2('${tile.id}','quei',this.value)"/>
             </div>
           </div>
-          <button class="sbtn" onclick="saveRow2('" + tile.id + "')">Salvar</button>
+          <button class="sbtn" data-id="${tile.id}" data-fase="2" onclick="handleSave(this)">Salvar</button>
         </div>`;
       sec.appendChild(card);
     });
@@ -509,6 +509,12 @@ function refreshTotals(){
 }
 
 // ── SYNC ─────────────────────────────────────────────────
+function handleSave(btn){
+  const id=btn.getAttribute('data-id');
+  const fase=parseInt(btn.getAttribute('data-fase'));
+  if(fase===1) saveRow1(id);
+  else saveRow2(id);
+}
 async function saveRow1(id){
   if(!scriptUrl){toast('⚙️ Configure o Google Sheets');return;}
   const g=F1_GROUPS.find(x=>x.id===id),s=stF1[id];
