@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orifícios — Controle de Azulejos</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+:root {
+  --tc:#C4714A; --tcd:#8B4A2E; --tcl:#E8A882; --tcp:#F5DDD0;
+  --bg:#FAF6F2; --white:#fff;
+  --ink:#251A14; --inkm:#6B4E42; --inkl:#A88070;
+  --ok:#3A7A55; --okbg:#E4F2EB;
+  --border:rgba(196,113,74,0.15);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;}
+
+/* HEADER */
+header{background:var(--tcd);padding:18px 18px 14px;}
+header h1{font-family:'Playfair Display',serif;color:#fff;font-size:20px;}
+header p{color:rgba(255,255,255,.6);font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;margin-top:2px;text-transform:uppercase;}
+
+/* TOTAIS */
+.totais{background:#6B3A20;display:grid;grid-template-columns:repeat(5,1fr);border-bottom:3px solid #4A2410;}
+.tot{text-align:center;padding:14px 4px;border-right:1px solid rgba(255,255,255,.12);}
+.tot:last-child{border-right:none;background:rgba(120,0,0,.25);}
+.tlbl{font-size:8px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;font-family:'IBM Plex Mono',monospace;margin-bottom:5px;color:#C49A60;}
+.tot:last-child .tlbl{color:#E87070;}
+.tnum{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:500;line-height:1;color:#E8A060;}
+.tnum.alerta{color:#F5D020 !important;}
+.tnum.ok{color:#AAFFCC;}
+
+/* SYNC */
+#sbar{background:#F0E4DA;padding:7px 14px;font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--inkm);display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--inkl);flex-shrink:0;}
+#sbar.syncing .sdot{background:#C49A20;animation:pulse .8s infinite;}
+#sbar.ok .sdot{background:var(--ok);}
+#sbar.error .sdot{background:#B03030;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.15}}
+
+/* PHASE TABS */
+.phase-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:2px solid var(--tcp);}
+.ptab{padding:12px 16px;font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center;cursor:pointer;color:var(--inkl);border-bottom:3px solid transparent;transition:all .2s;user-select:none;-webkit-tap-highlight-color:transparent;}
+.ptab.active{color:var(--tcd);border-bottom-color:var(--tcd);background:rgba(196,113,74,.05);}
+.ptab-num{font-size:9px;display:block;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px;}
+.ptab-label{font-size:13px;font-weight:500;}
+
+/* MAIN */
+main{padding:16px 14px 80px;max-width:560px;margin:0 auto;}
+.phase-section{display:none;}
+.phase-section.active{display:block;}
+
+/* GROUP HEADER */
+.grp-hdr{margin:24px 0 10px;display:flex;align-items:baseline;gap:10px;}
+.grp-nome{font-family:'Playfair Display',serif;font-size:21px;color:var(--tcd);}
+.grp-sub{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--inkl);text-transform:uppercase;letter-spacing:.07em;}
+.grp-div{height:2px;background:linear-gradient(to right,var(--tcp) 40%,transparent);margin-bottom:10px;}
+
+/* CARD */
+.card{background:var(--white);border:1px solid var(--border);border-radius:14px;margin-bottom:9px;overflow:hidden;box-shadow:0 1px 5px rgba(140,70,40,.06);}
+.chdr{display:flex;align-items:center;gap:14px;padding:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;}
+.chdr:active{background:#FDF5EF;}
+
+/* TILE */
+.twrap{flex-shrink:0;width:60px;height:60px;}
+.twrap svg{width:100%;height:100%;}
+
+/* CARD TEXT */
+.ctxt{flex:1;min-width:0;}
+.cnome{font-family:'Playfair Display',serif;font-size:17px;color:var(--ink);line-height:1.2;margin-bottom:4px;}
+.cchanfro{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--tcd);font-weight:500;letter-spacing:.02em;}
+
+/* FALTA */
+.fbadge{flex-shrink:0;text-align:right;}
+.fn{font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:500;line-height:1;}
+.fn.pos{color:var(--tc);}
+.fn.zero{color:var(--ok);}
+.fl{font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--inkl);font-family:'IBM Plex Mono',monospace;}
+.chev{color:var(--inkl);font-size:13px;transition:transform .2s;flex-shrink:0;margin-left:3px;}
+.chdr.open .chev{transform:rotate(180deg);}
+
+/* PROGRESS */
+.pbar{height:4px;background:var(--tcp);}
+.pfill{height:100%;background:var(--tc);transition:width .4s;}
+.pfill.full{background:var(--ok);}
+
+/* CARD BODY */
+.cbody{display:none;padding:16px 14px;background:#FBF1EB;border-top:1px solid var(--border);}
+.cbody.open{display:block;}
+
+.bmeta{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
+.bdiag{width:80px;height:80px;flex-shrink:0;}
+.bdiag svg{width:100%;height:100%;}
+.mnec{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--inkm);margin-bottom:4px;}
+.mnec strong{font-size:20px;color:var(--ink);}
+.mdesc{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--tcd);font-weight:500;line-height:1.5;margin-top:4px;}
+.madj{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--inkl);margin-top:3px;}
+
+/* FASE 1: FUNIL */
+.funil{display:flex;align-items:stretch;gap:0;margin-bottom:12px;border-radius:11px;overflow:hidden;border:1.5px solid var(--border);}
+.funil-step{flex:1;background:var(--white);padding:10px 6px;text-align:center;position:relative;}
+.funil-step:not(:last-child)::after{content:'›';position:absolute;right:-6px;top:50%;transform:translateY(-50%);color:var(--inkl);font-size:14px;z-index:1;}
+.funil-step:not(:first-child){border-left:1px solid var(--border);}
+.fstep-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:var(--inkl);font-family:'IBM Plex Mono',monospace;margin-bottom:4px;}
+.fstep-inp{width:100%;border:none;background:none;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:500;color:var(--ink);outline:none;-moz-appearance:textfield;}
+.fstep-inp::-webkit-inner-spin-button,.fstep-inp::-webkit-outer-spin-button{-webkit-appearance:none;}
+.fstep-inp:focus{color:var(--tcd);}
+
+/* FASE 2: FUNIL */
+.funil2{display:flex;align-items:stretch;gap:0;margin-bottom:12px;border-radius:11px;overflow:hidden;border:1.5px solid var(--border);}
+.funil2 .funil-step:last-child{background:var(--okbg);}
+.funil2 .funil-step:last-child .fstep-inp:focus{color:var(--ok);}
+
+/* SAVE BTN */
+.sbtn{width:100%;background:var(--tcd);color:#fff;border:none;border-radius:11px;padding:12px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,transform .1s;}
+.sbtn:active{background:var(--tc);transform:scale(.98);}
+
+/* FALTA CHIP */
+.badges{display:flex;gap:8px;flex-shrink:0;}
+.badge{text-align:center;min-width:44px;}
+.badge-num{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:500;line-height:1;}
+.badge-num.pos{color:var(--tc);}
+.badge-num.zero{color:var(--ok);}
+.badge-num.neg{color:var(--ok);}
+.badge-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:var(--inkl);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
+.badge-div{width:1px;background:var(--border);align-self:stretch;margin:2px 0;}
+.meta-chip{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--inkl);margin-bottom:10px;}
+.meta-chip strong{color:var(--inkm);}
+
+/* GEAR */
+.gbtn{position:fixed;bottom:18px;right:18px;width:44px;height:44px;border-radius:50%;background:var(--tcd);border:none;color:#fff;font-size:19px;cursor:pointer;box-shadow:0 4px 14px rgba(139,74,46,.4);z-index:50;display:flex;align-items:center;justify-content:center;}
+
+/* TOAST */
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:8px 18px;border-radius:22px;font-size:11px;font-family:'IBM Plex Mono',monospace;transition:transform .25s;z-index:999;white-space:nowrap;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+/* MODAL */
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:18px;}
+#modal.open{display:flex;}
+.mbox{background:var(--white);border-radius:16px;padding:22px;max-width:360px;width:100%;}
+.mbox h2{font-family:'Playfair Display',serif;font-size:17px;margin-bottom:7px;}
+.mbox p{font-size:11px;color:var(--inkm);line-height:1.6;margin-bottom:13px;}
+.mbox input{width:100%;border:1.5px solid var(--border);border-radius:9px;padding:10px 12px;font-size:11px;font-family:'IBM Plex Mono',monospace;outline:none;margin-bottom:11px;}
+.mbox input:focus{border-color:var(--tc);}
+.mbts{display:flex;gap:7px;}
+.mbts button{flex:1;padding:10px;border-radius:9px;border:none;font-size:12px;cursor:pointer;}
+.mbp{background:var(--tcd);color:#fff;font-weight:500;}
+.mbs{background:var(--tcp);color:var(--inkm);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Orifícios — Banco 40×40×40</h1>
+  <p>Controle de produção · azulejos</p>
+</header>
+
+<!-- TOTAIS -->
+<div class="totais">
+  <div class="tot"><div class="tlbl">Moldadas</div><div class="tnum" id="h-mold">0</div></div>
+  <div class="tot"><div class="tlbl">Acabamento</div><div class="tnum" id="h-acab">0</div></div>
+  <div class="tot"><div class="tlbl">Chanfro</div><div class="tnum" id="h-chan">0</div></div>
+  <div class="tot"><div class="tlbl">Queimadas</div><div class="tnum" id="h-quei">0</div></div>
+  <div class="tot"><div class="tlbl">Faltam</div><div class="tnum alerta" id="h-falt">92</div></div>
+</div>
+
+<div id="sbar"><div class="sdot"></div><span id="smsg">Configure o Google Sheets para sincronizar (⚙️)</span></div>
+
+<!-- PHASE TABS -->
+<div class="phase-tabs">
+  <div class="ptab active" id="tab1" onclick="setPhase(1)">
+    <span class="ptab-num">Fase 1</span>
+    <span class="ptab-label">Molde + Acabamento</span>
+  </div>
+  <div class="ptab" id="tab2" onclick="setPhase(2)">
+    <span class="ptab-num">Fase 2</span>
+    <span class="ptab-label">Chanfro + Queima</span>
+  </div>
+</div>
+
+<main>
+  <div class="phase-section active" id="phase1"></div>
+  <div class="phase-section" id="phase2"></div>
+</main>
+
+<div id="toast"></div>
+<button class="gbtn" onclick="openModal()">⚙️</button>
+
+<div id="modal">
+  <div class="mbox">
+    <h2>Google Sheets</h2>
+    <p>Cole a URL do Google Apps Script (Web App) para sincronizar com a planilha.</p>
+    <input type="url" id="uinput" placeholder="https://script.google.com/macros/s/..."/>
+    <div class="mbts">
+      <button class="mbs" onclick="closeModal()">Cancelar</button>
+      <button class="mbp" onclick="saveModal()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── ICONS ────────────────────────────────────────────────
+const IC = '#3A1008';
+const ICONS = {
+  orelha: {
+    vb:'0 0 24 24', sw:2,
+    els:[
+      {p:'M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 1 1-7 0'},
+      {p:'M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 1 0 4'},
+    ]
+  },
+  olho: {
+    vb:'0 0 24 24', sw:2,
+    els:[
+      {p:'M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0'},
+      {c:[12,12,3]},
+    ]
+  },
+  nariz: {
+    vb:'0 0 24 24', sw:2,
+    els:[
+      {p:'M12 3 C11.5 3 11 4 10.8 6 C10.5 9 10 12 9.2 15 C8.4 18 7 19.5 7 21 C7 22 8 22.5 9.5 22.5 C11 22.5 13 22 15 21.5'},
+    ]
+  },
+  boca: {
+    vb:'0 0 72 72', sw:2.434,
+    els:[
+      {p:'m8.167 34.6c4.525-2.941 9.886-9.214 15.56-14.2 1.318-1.16 2.902-2.548 5.805-1.16l3.821 2.034c0.8813 0.5098 1.182 0.6844 2.643 0.6844s1.761-0.1746 2.643-0.6844l3.821-2.034c2.902-1.388 4.487 0 5.805 1.16 5.678 4.981 11.04 11.25 15.56 14.2'},
+      {p:'m8.167 34.6 14.91 14.25c2.51 2.434 5.782 4.487 12.93 4.487s10.42-2.053 12.93-4.487l14.91-14.25'},
+      {p:'m36 39.03c-7.608 0-9.715-4.867-13.76-4.259 6.711-5.057 10.4-0.6084 13.76-0.6084s7.053-4.449 13.76 0.6084c-4.049-0.6084-6.156 4.259-13.76 4.259z'},
+    ]
+  },
+};
+
+function iconInner(key, scale) {
+  const ic = ICONS[key];
+  const sw = ic.sw / (scale||1);
+  const attrs = `fill="none" stroke="${IC}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10"`;
+  return ic.els.map(el =>
+    el.c ? `<circle cx="${el.c[0]}" cy="${el.c[1]}" r="${el.c[2]}" ${attrs}/>`
+         : `<path d="${el.p}" ${attrs}/>`
+  ).join('');
+}
+
+function tileSVG(ch, motivo, S) {
+  const RR=14, P=3, CW=7;
+  const TC='#C4714A', TS='#8B4A2E', CC='#F5C418';
+  const hT=ch.includes('top'),hB=ch.includes('bottom'),hL=ch.includes('left'),hR=ch.includes('right');
+  const m=RR;
+
+  let h=`<svg viewBox="0 0 ${S} ${S}" xmlns="http://www.w3.org/2000/svg">`;
+  h+=`<rect x="${P}" y="${P}" width="${S-P*2}" height="${S-P*2}" rx="${RR}" ry="${RR}" fill="${TC}" stroke="${TS}" stroke-width="2"/>`;
+  if(hT) h+=`<line x1="${P+m}" y1="${P}" x2="${S-P-m}" y2="${P}" stroke="${CC}" stroke-width="${CW}" stroke-linecap="round"/>`;
+  if(hB) h+=`<line x1="${P+m}" y1="${S-P}" x2="${S-P-m}" y2="${S-P}" stroke="${CC}" stroke-width="${CW}" stroke-linecap="round"/>`;
+  if(hL) h+=`<line x1="${P}" y1="${P+m}" x2="${P}" y2="${S-P-m}" stroke="${CC}" stroke-width="${CW}" stroke-linecap="round"/>`;
+  if(hR) h+=`<line x1="${S-P}" y1="${P+m}" x2="${S-P}" y2="${S-P-m}" stroke="${CC}" stroke-width="${CW}" stroke-linecap="round"/>`;
+
+  if(motivo) {
+    const ic=ICONS[motivo];
+    const [,, vw, vh]=ic.vb.split(' ').map(Number);
+    const pad=16, avail=S-pad*2;
+    const sc=avail/Math.max(vw,vh);
+    const ox=pad+(avail-vw*sc)/2, oy=pad+(avail-vh*sc)/2;
+    h+=`<g transform="translate(${ox},${oy}) scale(${sc})">${iconInner(motivo,sc)}</g>`;
+  }
+  h+=`</svg>`;
+  return h;
+}
+
+// ── DATA ─────────────────────────────────────────────────
+// FASE 1: groups — meta mínima, meta ajustada (+10% lisos, +20% esculturas)
+const F1_GROUPS = [
+  {id:'f1-lisos',  label:'Lisos',  motivo:null,    necMin:52, necAdj:58},
+  {id:'f1-nariz',  label:'Nariz',  motivo:'nariz', necMin:10, necAdj:12},
+  {id:'f1-boca',   label:'Boca',   motivo:'boca',  necMin:10, necAdj:12},
+  {id:'f1-orelha', label:'Orelha', motivo:'orelha',necMin:10, necAdj:12},
+  {id:'f1-olho',   label:'Olho',   motivo:'olho',  necMin:10, necAdj:12},
+];
+
+// FASE 2: tiles por tipo — meta = exata, sem margem
+const F2_GROUPS = [
+  {label:'Lisos', tiles:[
+    {id:'liso-tampa',   nome:'Tampa',          cdesc:'Sem chanfros',                           nec:8,  ch:[], motivo:null},
+    {id:'liso-lateral', nome:'Face lateral',   cdesc:'1 chanfro — aresta superior',            nec:16, ch:['top'], motivo:null},
+    {id:'liso-quina',   nome:'Quina',          cdesc:'2 chanfros perpendiculares — cima + dir.',nec:4, ch:['top','right'], motivo:null},
+    {id:'liso-pe',      nome:'Pé',             cdesc:'2 chanfros opostos — cima + baixo',      nec:24, ch:['top','bottom'], motivo:null},
+  ]},
+  {label:'Nariz', tiles:[
+    {id:'nariz-lat',    nome:'Face lateral',   cdesc:'2 chanfros opostos — cima + baixo',      nec:2,  ch:['top','bottom'], motivo:'nariz'},
+    {id:'nariz-qd',     nome:'Quina direita',  cdesc:'2 chanfros — cima + direita',            nec:1,  ch:['top','right'],  motivo:'nariz'},
+    {id:'nariz-qe',     nome:'Quina esquerda', cdesc:'2 chanfros — cima + esquerda',           nec:1,  ch:['top','left'],   motivo:'nariz'},
+    {id:'nariz-pe',     nome:'Pé',             cdesc:'2 chanfros opostos — esq. + dir.',       nec:6,  ch:['left','right'], motivo:'nariz'},
+  ]},
+  {label:'Boca', tiles:[
+    {id:'boca-lat',     nome:'Face lateral',   cdesc:'2 chanfros opostos — cima + baixo',      nec:2,  ch:['top','bottom'], motivo:'boca'},
+    {id:'boca-qd',      nome:'Quina direita',  cdesc:'2 chanfros — cima + direita',            nec:1,  ch:['top','right'],  motivo:'boca'},
+    {id:'boca-qe',      nome:'Quina esquerda', cdesc:'2 chanfros — cima + esquerda',           nec:1,  ch:['top','left'],   motivo:'boca'},
+    {id:'boca-pe',      nome:'Pé',             cdesc:'2 chanfros opostos — esq. + dir.',       nec:6,  ch:['left','right'], motivo:'boca'},
+  ]},
+  {label:'Orelha', tiles:[
+    {id:'orelha-lat',   nome:'Face lateral',   cdesc:'2 chanfros opostos — cima + baixo',      nec:2,  ch:['top','bottom'], motivo:'orelha'},
+    {id:'orelha-qd',    nome:'Quina direita',  cdesc:'2 chanfros — cima + direita',            nec:1,  ch:['top','right'],  motivo:'orelha'},
+    {id:'orelha-qe',    nome:'Quina esquerda', cdesc:'2 chanfros — cima + esquerda',           nec:1,  ch:['top','left'],   motivo:'orelha'},
+    {id:'orelha-pe',    nome:'Pé',             cdesc:'2 chanfros opostos — esq. + dir.',       nec:6,  ch:['left','right'], motivo:'orelha'},
+  ]},
+  {label:'Olho', tiles:[
+    {id:'olho-lat',     nome:'Face lateral',   cdesc:'2 chanfros opostos — cima + baixo',      nec:2,  ch:['top','bottom'], motivo:'olho'},
+    {id:'olho-qd',      nome:'Quina direita',  cdesc:'2 chanfros — cima + direita',            nec:1,  ch:['top','right'],  motivo:'olho'},
+    {id:'olho-qe',      nome:'Quina esquerda', cdesc:'2 chanfros — cima + esquerda',           nec:1,  ch:['top','left'],   motivo:'olho'},
+    {id:'olho-pe',      nome:'Pé',             cdesc:'2 chanfros opostos — esq. + dir.',       nec:6,  ch:['left','right'], motivo:'olho'},
+  ]},
+];
+
+const F2_TILES = F2_GROUPS.flatMap(g=>g.tiles);
+const NEC_TOTAL = F2_TILES.reduce((a,t)=>a+t.nec,0); // 92
+
+// state
+const stF1={};
+F1_GROUPS.forEach(g=>{stF1[g.id]={mold:0,acab:0};});
+const stF2={};
+F2_TILES.forEach(t=>{stF2[t.id]={chan:0,quei:0};});
+
+let scriptUrl=localStorage.getItem('orf_url')||'';
+
+// ── BUILD FASE 1 ──────────────────────────────────────────
+function buildF1(){
+  const el=document.getElementById('phase1');
+  el.innerHTML='';
+  // Aviso no topo da fase 1
+  const notice = document.createElement('div');
+  notice.style.cssText='background:#F5DDD0;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-family:IBM Plex Mono,monospace;font-size:11px;color:#6B4E42;line-height:1.5;';
+  notice.textContent='Nesta fase os azulejos não são diferenciados por chanfro — registre apenas o total por motivo.';
+  el.appendChild(notice);
+  F1_GROUPS.forEach(g=>{
+    const s=stF1[g.id];
+    const card=document.createElement('div');
+    card.className='card'; card.id='card-'+g.id;
+
+    const tileHTML = g.motivo
+      ? tileSVG([],g.motivo,60)
+      : `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="54" height="54" rx="14" ry="14" fill="#C4714A" stroke="#8B4A2E" stroke-width="2"/>
+         </svg>`;
+
+    card.innerHTML=`
+      <div class="chdr" id="hdr-${g.id}" onclick="tog('${g.id}')">
+        <div class="twrap">${tileHTML}</div>
+        <div class="ctxt">
+          <div class="cnome">${g.label}</div>
+          <div class="cchanfro">Meta ${g.necAdj} · mín. ${g.necMin}</div>
+        </div>
+        <div class="badges">
+            <div class="badge">
+              <div class="badge-num ${(g.necAdj-s.mold-s.acab)<=0?'zero':'pos'}" id="b1-${g.id}">${g.necAdj-s.mold-s.acab}</div>
+              <div class="badge-lbl">moldar</div>
+            </div>
+            <div class="badge-div"></div>
+            <div class="badge">
+              <div class="badge-num ${(g.necAdj-s.acab)<=0?'zero':'pos'}" id="b2-${g.id}">${g.necAdj-s.acab}</div>
+              <div class="badge-lbl">acabam.</div>
+            </div>
+          </div>
+        <div class="chev" id="chev-${g.id}">▾</div>
+      </div>
+      <div class="pbar"><div class="pfill" id="pf-${g.id}" style="width:${Math.min(100,(s.mold+s.acab)/g.necAdj*100)}%"></div></div>
+      <div class="cbody" id="body-${g.id}">
+
+        <div class="funil">
+          <div class="funil-step">
+            <div class="fstep-lbl">Moldadas</div>
+            <input class="fstep-inp" type="number" min="0" inputmode="numeric"
+              id="im-${g.id}" value="${s.mold}"
+              onchange="updF1('${g.id}','mold',this.value)"/>
+          </div>
+          <div class="funil-step">
+            <div class="fstep-lbl">Acabamento</div>
+            <input class="fstep-inp" type="number" min="0" inputmode="numeric"
+              id="ia-${g.id}" value="${s.acab}"
+              onchange="updF1('${g.id}','acab',this.value)"/>
+          </div>
+        </div>
+        <button class="sbtn" onclick="saveRow1('" + g.id + "')">Salvar</button>
+      </div>`;
+    el.appendChild(card);
+  });
+}
+
+// ── BUILD FASE 2 ──────────────────────────────────────────
+function buildF2(){
+  const el=document.getElementById('phase2');
+  el.innerHTML='';
+  F2_GROUPS.forEach(g=>{
+    const tnec=g.tiles.reduce((a,t)=>a+t.nec,0);
+    const sec=document.createElement('div');
+    sec.innerHTML=`<div class="grp-hdr"><span class="grp-nome">${g.label}</span><span class="grp-sub">${tnec} necessários</span></div><div class="grp-div"></div>`;
+
+    g.tiles.forEach(tile=>{
+      const s=stF2[tile.id];
+      const falta=Math.max(0,tile.nec-s.quei);
+      const pct=tile.nec>0?Math.min(100,s.quei/tile.nec*100):0;
+      const card=document.createElement('div');
+      card.className='card'; card.id='card-'+tile.id;
+      card.innerHTML=`
+        <div class="chdr" id="hdr-${tile.id}" onclick="tog('${tile.id}')">
+          <div class="twrap">${tileSVG(tile.ch,tile.motivo,60)}</div>
+          <div class="ctxt">
+            <div class="cnome">${tile.nome}</div>
+            <div class="cchanfro">${tile.cdesc}</div>
+          </div>
+          <div class="badges">
+            <div class="badge">
+              <div class="badge-num ${(tile.nec-s.chan-s.quei)<=0?'neg':'pos'}" id="b1-${tile.id}">${tile.nec-s.chan-s.quei}</div>
+              <div class="badge-lbl">chanfro</div>
+            </div>
+            <div class="badge-div"></div>
+            <div class="badge">
+              <div class="badge-num ${(tile.nec-s.quei)<=0?'neg':'pos'}" id="b2-${tile.id}">${tile.nec-s.quei}</div>
+              <div class="badge-lbl">queimar</div>
+            </div>
+          </div>
+          <div class="chev" id="chev-${tile.id}">▾</div>
+        </div>
+        <div class="pbar"><div class="pfill ${pct>=100?'full':''}" id="pf-${tile.id}" style="width:${pct}%"></div></div>
+        <div class="cbody" id="body-${tile.id}">
+
+          <div class="meta-chip">Meta: <strong>${tile.nec} azulejos</strong></div>
+          <div class="funil2 funil">
+            <div class="funil-step">
+              <div class="fstep-lbl">Chanfro</div>
+              <input class="fstep-inp" type="number" min="0" inputmode="numeric"
+                id="ic-${tile.id}" value="${s.chan}"
+                onchange="updF2('${tile.id}','chan',this.value)"/>
+            </div>
+            <div class="funil-step">
+              <div class="fstep-lbl">Queimadas ✓</div>
+              <input class="fstep-inp" type="number" min="0" inputmode="numeric"
+                id="iq-${tile.id}" value="${s.quei}"
+                onchange="updF2('${tile.id}','quei',this.value)"/>
+            </div>
+          </div>
+          <button class="sbtn" onclick="saveRow2('" + tile.id + "')">Salvar</button>
+        </div>`;
+      sec.appendChild(card);
+    });
+    el.appendChild(sec);
+  });
+}
+
+// ── INTERACTIONS ──────────────────────────────────────────
+function setPhase(n){
+  document.getElementById('tab1').classList.toggle('active',n===1);
+  document.getElementById('tab2').classList.toggle('active',n===2);
+  document.getElementById('phase1').classList.toggle('active',n===1);
+  document.getElementById('phase2').classList.toggle('active',n===2);
+}
+
+function tog(id){
+  document.getElementById('body-'+id).classList.toggle('open');
+  document.getElementById('hdr-'+id).classList.toggle('open');
+}
+
+function updF1(id,f,v){
+  stF1[id][f]=parseInt(v)||0;
+  refreshF1(id); refreshTotals();
+}
+function updF2(id,f,v){
+  stF2[id][f]=parseInt(v)||0;
+  refreshF2(id); refreshTotals();
+}
+
+function refreshF1(id){
+  const g=F1_GROUPS.find(x=>x.id===id), s=stF1[id];
+  const faltaMoldar=g.necAdj-s.mold-s.acab;
+  const faltaAcab=g.necAdj-s.acab;
+  const pct=Math.min(100,(s.mold+s.acab)/g.necAdj*100);
+  const b1=document.getElementById('b1-'+id);
+  if(b1){b1.textContent=faltaMoldar;b1.className='badge-num '+(faltaMoldar<=0?'zero':'pos');}
+  const b2=document.getElementById('b2-'+id);
+  if(b2){b2.textContent=faltaAcab;b2.className='badge-num '+(faltaAcab<=0?'zero':'pos');}
+  const pf=document.getElementById('pf-'+id);
+  if(pf){pf.style.width=pct+'%';pf.className='pfill'+(pct>=100?' full':'');}
+}
+
+function refreshF2(id){
+  const t=F2_TILES.find(x=>x.id===id), s=stF2[id];
+  const faltaChan=t.nec-s.chan-s.quei;
+  const faltaQueimar=t.nec-s.quei;
+  const pct=t.nec>0?Math.min(100,(s.chan+s.quei)/t.nec*100):0;
+  const b1=document.getElementById('b1-'+id);
+  if(b1){b1.textContent=faltaChan;b1.className='badge-num '+(faltaChan<=0?'neg':'pos');}
+  const b2=document.getElementById('b2-'+id);
+  if(b2){b2.textContent=faltaQueimar;b2.className='badge-num '+(faltaQueimar<=0?'neg':'pos');}
+  const pf=document.getElementById('pf-'+id);
+  if(pf){pf.style.width=pct+'%';pf.className='pfill'+(pct>=100?' full':'');}
+}
+
+function refreshTotals(){
+  let mold=0,acab=0,chan=0,quei=0;
+  F1_GROUPS.forEach(g=>{const s=stF1[g.id];mold+=s.mold;acab+=s.acab;});
+  F2_TILES.forEach(t=>{const s=stF2[t.id];chan+=s.chan;quei+=s.quei;});
+  const falta=NEC_TOTAL-chan-quei;
+  document.getElementById('h-mold').textContent=mold;
+  document.getElementById('h-acab').textContent=acab;
+  document.getElementById('h-chan').textContent=chan;
+  document.getElementById('h-quei').textContent=quei;
+  const hf=document.getElementById('h-falt');
+  hf.textContent=falta; hf.className='tnum '+(falta<=0?'ok':'alerta');
+}
+
+// ── SYNC ─────────────────────────────────────────────────
+async function saveRow1(id){
+  if(!scriptUrl){toast('⚙️ Configure o Google Sheets');return;}
+  const g=F1_GROUPS.find(x=>x.id===id),s=stF1[id];
+  setSbar('syncing','Salvando...');
+  try{
+    const params=new URLSearchParams({
+      fase:1, id, label:g.label, necMin:g.necMin, necAdj:g.necAdj,
+      mold:s.mold, acab:s.acab, ts:new Date().toISOString()
+    });
+    const r=await fetch(scriptUrl+'?'+params.toString());
+    const data=await r.json();
+    if(data.ok){setSbar('ok','Salvo · '+new Date().toLocaleTimeString('pt-BR'));toast('✓ Salvo');}
+    else throw new Error('not ok');
+  }catch(e){setSbar('error','Erro ao salvar');toast('✗ Erro ao salvar');}
+}
+async function saveRow2(id){
+  if(!scriptUrl){toast('⚙️ Configure o Google Sheets');return;}
+  const t=F2_TILES.find(x=>x.id===id),s=stF2[id];
+  setSbar('syncing','Salvando...');
+  try{
+    const params=new URLSearchParams({
+      fase:2, id, nome:t.nome, nec:t.nec,
+      chan:s.chan, quei:s.quei, falta:t.nec-s.chan-s.quei, ts:new Date().toISOString()
+    });
+    const r=await fetch(scriptUrl+'?'+params.toString());
+    const data=await r.json();
+    if(data.ok){setSbar('ok','Salvo · '+new Date().toLocaleTimeString('pt-BR'));toast('✓ Salvo');}
+    else throw new Error('not ok');
+  }catch(e){setSbar('error','Erro ao salvar');toast('✗ Erro ao salvar');}
+}
+function setSbar(t,m){document.getElementById('sbar').className=t;document.getElementById('smsg').textContent=m;}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function openModal(){document.getElementById('uinput').value=scriptUrl;document.getElementById('modal').classList.add('open');}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+function saveModal(){scriptUrl=document.getElementById('uinput').value.trim();localStorage.setItem('orf_url',scriptUrl);closeModal();}
+
+// ── LOAD ALL ─────────────────────────────────────────────
+async function loadAll() {
+  if (!scriptUrl) return;
+  setSbar('syncing', 'Carregando dados...');
+  try {
+    const r = await fetch(scriptUrl + '?action=getAll');
+    if (!r.ok) throw new Error('fetch failed');
+    const data = await r.json();
+    if (data && typeof data === 'object') {
+      Object.keys(data).forEach(id => {
+        if (stF1[id]) {
+          stF1[id] = { ...stF1[id], ...data[id] };
+          // update inputs
+          const im = document.getElementById('im-' + id);
+          const ia = document.getElementById('ia-' + id);
+          if (im) im.value = stF1[id].mold;
+          if (ia) ia.value = stF1[id].acab;
+          refreshF1(id);
+        }
+        if (stF2[id]) {
+          stF2[id] = { ...stF2[id], ...data[id] };
+          const ic = document.getElementById('ic-' + id);
+          const iq = document.getElementById('iq-' + id);
+          if (ic) ic.value = stF2[id].chan;
+          if (iq) iq.value = stF2[id].quei;
+          refreshF2(id);
+        }
+      });
+      refreshTotals();
+      setSbar('ok', 'Carregado · ' + new Date().toLocaleTimeString('pt-BR'));
+    }
+  } catch(e) {
+    setSbar('error', 'Não foi possível carregar os dados');
+  }
+}
+
+// ── INIT ─────────────────────────────────────────────────
+buildF1();
+buildF2();
+refreshTotals();
+if (scriptUrl) loadAll();
+</script>
+</body>
+</html>
